@@ -1,4 +1,4 @@
-package com.opensourse.leo.localtask;
+package com.opensource.leo.localtask.cron;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,11 +55,7 @@ public final class TaskScheduler {
     }
 
     Task newFlushTask() {
-        Task task = new Task() {
-            {
-                initial("scheduler", "scheduler_task_flush", 0, 15);
-            }
-
+        Task task = new Task("scheduler", "scheduler_task_flush", 0, 15) {
             @Override
             protected boolean doTask() {
                 logger.warn("flushing");
