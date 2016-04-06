@@ -1,5 +1,6 @@
 package com.opensource.leo.localtask.cron;
 
+import org.apache.commons.lang.math.NumberUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,31 +17,38 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Date: 15-08-13
  */
 public final class TaskScheduler {
-
     private static Logger logger = LoggerFactory.getLogger(TaskScheduler.class);
-    private static final int CORE_COUNT = Runtime.getRuntime().availableProcessors();
-    private static ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(CORE_COUNT);
-    private static Map<String, ScheduledFuture<?>> taskFutures = new HashMap<String, ScheduledFuture<?>>();
-    private static AtomicInteger taskCounter = new AtomicInteger(0);
+    private static final int CORE_COUNT = NumberUtils.toInt(System.getProperty("core")) > 0 ?
+            NumberUtils.toInt(System.getProperty("core")) : Runtime.getRuntime().availableProcessors();
+    private AtomicInteger taskCounter = new AtomicInteger(0);
+
+    private ScheduledThreadPoolExecutor executor;
+    private Map<String, ScheduledFuture<?>> taskFutures = new HashMap<String, ScheduledFuture<?>>();
     private TaskRegister taskRegister;
 
     public TaskScheduler(TaskRegister taskRegister) {
-        this.taskRegister = taskRegister;
+        this(taskRegister, CORE_COUNT);
     }
 
-    public static ScheduledFuture<?> getTaskFuture(String identify) {
+    public TaskScheduler(TaskRegister taskRegister, int corePoolSize) {
+        this.taskRegister = taskRegister;
+        this.executor = new ScheduledThreadPoolExecutor(corePoolSize);
+    }
+
+
+    public ScheduledFuture<?> getTaskFuture(String identify) {
         return getTaskFutures().get(identify);
     }
 
-    public static ScheduledFuture<?> removeTaskFuture(String identify) {
+    public ScheduledFuture<?> removeTaskFuture(String identify) {
         return getTaskFutures().remove(identify);
     }
 
-    public static Map<String, ScheduledFuture<?>> getTaskFutures() {
+    public Map<String, ScheduledFuture<?>> getTaskFutures() {
         return taskFutures;
     }
 
-    public static int getTaskCount() {
+    public int getTaskCount() {
         return taskCounter.get();
     }
 
