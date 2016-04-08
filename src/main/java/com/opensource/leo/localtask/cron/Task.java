@@ -70,6 +70,9 @@ public abstract class Task implements Runnable {
         MDC.remove("task");
     }
 
+    public void init() {
+    }
+
     /**
      * do task
      *

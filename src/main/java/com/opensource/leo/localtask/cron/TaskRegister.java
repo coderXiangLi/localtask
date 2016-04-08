@@ -25,9 +25,20 @@ public class TaskRegister {
 
     public boolean register(Task task) {
         if (task != null) {
+            task.init();
             return register(task.getGroup(), task);
         }
         return false;
+    }
+
+    public boolean register(Collection<Task> tasks) {
+        for (Task task : tasks) {
+            if (task != null) {
+                task.init();
+                if (!register(task.getGroup(), task)) return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -123,11 +134,8 @@ public class TaskRegister {
     }
 
     public Set<Task> getGroupTasks(String group) {
-        // 参数非空
         if (StringUtils.isNotBlank(group)) {
-            // 取所有任务
             ConcurrentMap<String, Set<Task>> tasks = getAllTasks();
-            // 取分组
             Set<Task> queue = tasks.get(group);
             if (queue != null) {
                 return queue;

@@ -55,7 +55,7 @@ public final class TaskScheduler {
     /**
      * get unsubmited task from task_register every 15 min
      */
-    public void init() {
+    public void begin() {
         logger.warn("TaskScheduler is initiating!");
         Task task = newFlushTask();
         submitTask(task);

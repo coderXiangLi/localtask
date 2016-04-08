@@ -1,13 +1,14 @@
 package com.opensource.leo.localtask.entrance;
 
-import com.google.common.collect.Sets;
-import com.opensource.leo.localtask.cron.LocalTask;
+import com.opensource.leo.localtask.cron.Task;
 import com.opensource.leo.localtask.cron.TaskRegister;
 import com.opensource.leo.localtask.cron.TaskScheduler;
-import org.apache.commons.collections.CollectionUtils;
+import com.opensource.leo.localtask.init.Initor;
+import com.opensource.leo.localtask.init.InitorInitializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -24,17 +25,12 @@ public class Bootstrap {
         Bootstrap bootstrap = new Bootstrap();
         try {
             bootstrap.init();
-        } catch (Throwable t) {
-            logger.error("[Bootstrap] : init error", t);
-            System.exit(1);
-        }
-        try {
             bootstrap.registerTasks(args);
         } catch (TaskException e) {
-            logger.error("[Bootstrap] : registerTasks error", e);
+            logger.error("[Bootstrap] : task error", e);
             System.exit(1);
         } catch (Throwable t) {
-            logger.error("[Bootstrap] :registerTasks error", t);
+            logger.error("[Bootstrap] : error", t);
             System.exit(1);
         }
     }
@@ -42,29 +38,20 @@ public class Bootstrap {
     private void init() throws Exception {
         this.taskRegister = new TaskRegister();
         this.taskScheduler = new TaskScheduler(taskRegister);
+        List<Initor> initors = new InitorInitializer().init();
+        for (Initor initor : initors) {
+            initor.init();
+        }
     }
 
     private void registerTasks(String[] args) {
         try {
             Set<String> runTasks = new OptionsParser().parse(args);
-            Map<String, LocalTask> tasks = new TaskInitializer().init();
-            if (runTasks.isEmpty()) {
-                for (LocalTask localTask : tasks.values()) {
-                    localTask.init();
-                    taskRegister.register(localTask);
-                }
-            } else {
-                Set<String> intersection = Sets.intersection(runTasks, tasks.keySet());
-                for (String task : intersection) {
-                    LocalTask localTask = tasks.get(task);
-                    localTask.init();
-                    taskRegister.register(localTask);
-                }
-            }
-            taskScheduler.init();
+            Map<String, Task> tasks = new TaskInitializer().init(runTasks);
+            taskRegister.register(tasks.values());
+            taskScheduler.begin();
         } catch (Throwable t) {
-            throw new TaskException("register task", t);
+            throw new TaskException("[Bootstrap] : register task", t);
         }
-
     }
 }

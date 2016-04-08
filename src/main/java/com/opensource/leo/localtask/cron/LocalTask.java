@@ -8,8 +8,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Date: 15-9-6
  */
 public abstract class LocalTask extends Task {
-    private AtomicBoolean inited = new AtomicBoolean(false);
-
     public LocalTask(String group, String key, int delay, int period, TimeUnit unit) {
         super(group, key, delay, period, unit, false);
     }
@@ -18,13 +16,12 @@ public abstract class LocalTask extends Task {
         super(group, key, delay, period, unit, fixedRate);
     }
 
+    @Override
     public final void init() {
-        if (inited.compareAndSet(false, true)) {
-            logger.warn(String.format("[Task]:%s\01preparing", getIdentify()));
-            // do prepare
-            prepare();
-            logger.warn(String.format("[Task]:%s\01prepared", getIdentify()));
-        }
+        logger.warn(String.format("[Task]:%s\01preparing", getIdentify()));
+        // do prepare
+        prepare();
+        logger.warn(String.format("[Task]:%s\01prepared", getIdentify()));
     }
 
     protected void prepare() {
