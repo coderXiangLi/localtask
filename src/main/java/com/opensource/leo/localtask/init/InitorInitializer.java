@@ -1,7 +1,7 @@
 package com.opensource.leo.localtask.init;
 
 
-import com.opensource.leo.localtask.entrance.Annotationer;
+import com.opensource.leo.localtask.annotation.Annotationer;
 import com.opensource.leo.localtask.entrance.TaskConfig;
 
 import java.io.IOException;
@@ -15,7 +15,7 @@ public class InitorInitializer {
     public List<Initor> init() throws IOException, IllegalAccessException, InstantiationException {
         List<Initor> initors = new ArrayList<Initor>();
         // begin task from project
-        List<Class> clazzs = Annotationer.findClass(Initor.class, PersonalInitor.class, TaskConfig.WORK_PACKAGE_DIR);
+        List<Class<Initor>> clazzs = Annotationer.findClass(Initor.class, PersonalInitor.class, TaskConfig.WORK_PACKAGE_DIR);
         for (Class clazz : clazzs) {
             initInitor(clazz, initors);
         }

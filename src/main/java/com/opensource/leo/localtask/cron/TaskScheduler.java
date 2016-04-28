@@ -1,5 +1,6 @@
 package com.opensource.leo.localtask.cron;
 
+import com.opensource.leo.localtask.scheduling.ThreadPoolTaskScheduler;
 import org.apache.commons.lang.math.NumberUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,7 +10,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -22,7 +23,7 @@ public final class TaskScheduler {
             NumberUtils.toInt(System.getProperty("core")) : Runtime.getRuntime().availableProcessors();
     private AtomicInteger taskCounter = new AtomicInteger(0);
 
-    private ScheduledThreadPoolExecutor executor;
+    private ThreadPoolTaskScheduler executor;
     private Map<String, ScheduledFuture<?>> taskFutures = new HashMap<String, ScheduledFuture<?>>();
     private TaskRegister taskRegister;
 
@@ -32,7 +33,7 @@ public final class TaskScheduler {
 
     public TaskScheduler(TaskRegister taskRegister, int corePoolSize) {
         this.taskRegister = taskRegister;
-        this.executor = new ScheduledThreadPoolExecutor(corePoolSize);
+        this.executor = new ThreadPoolTaskScheduler(corePoolSize);
     }
 
 
@@ -56,22 +57,37 @@ public final class TaskScheduler {
      * get unsubmited task from task_register every 15 min
      */
     public void begin() {
-        logger.warn("TaskScheduler is initiating!");
+        logger.warn("TaskSchedulerExecutor is initiating!");
         Task task = newFlushTask();
         submitTask(task);
-        logger.warn("TaskScheduler has been initialized!");
+        logger.warn("TaskSchedulerExecutor has been initialized!");
     }
 
     Task newFlushTask() {
-        Task task = new Task("scheduler", "scheduler_task_flush", 0, 15) {
+        TaskExecutor executor = new TaskExecutor() {
             @Override
-            protected boolean doTask() {
+            public void init(Task task) throws Exception {
+
+            }
+
+            @Override
+            public boolean execute(Task task) {
                 logger.warn("flushing");
                 flushTasks();
                 logger.warn("flushed");
                 return true;
             }
+
+            @Override
+            public String name() {
+                return "flush";
+            }
         };
+        TaskMeta.Meta meta = new TaskMeta.Meta("scheduler", "scheduler_task_flush");
+        TaskMeta.SchduleMeta schduleMeta = new TaskMeta.SchduleMeta(0, 15, TimeUnit.SECONDS, true);
+        TaskMeta configuration = new TaskMeta(meta, schduleMeta);
+        Task task = new Task(configuration);
+        task.setTaskExecutor(executor);
         task.compareAndSet(TaskStatus.WAIT, TaskStatus.READY);
         return task;
     }
@@ -118,13 +134,16 @@ public final class TaskScheduler {
     ScheduledFuture<?> submitTask(Task task) {
         ScheduledFuture<?> future = null;
         if (task != null) {
-            if (task.isFixedRate()) {
-                future = executor.scheduleAtFixedRate(task, task.getDelay(), task.getPeriod(), task.getUnit());
+            TaskMeta meta = task.getTaskMeta();
+            if (meta.isTrigger()) {
+                future = executor.schedule(task, meta.getTrigger());
+            } else if (meta.isFixedRate()) {
+                future = executor.scheduleAtFixedRate(task, meta.getDelay(), meta.getPeriod(), meta.getUnit());
             } else {
-                future = executor.scheduleWithFixedDelay(task, task.getDelay(), task.getPeriod(), task.getUnit());
+                future = executor.scheduleWithFixedDelay(task, meta.getDelay(), meta.getPeriod(), meta.getUnit());
             }
             taskCounter.incrementAndGet();
-            taskFutures.put(task.getIdentify(), future);
+            taskFutures.put(meta.getUnique(), future);
         }
         return future;
     }
@@ -144,11 +163,12 @@ public final class TaskScheduler {
      */
     boolean cancelTaskAndRemove(Task task) {
         if (task != null) {
-            logger.warn(String.format("%s\02finishTask", task.getIdentify()));
-            ScheduledFuture<?> future = getTaskFuture(task.getIdentify());
+            String identify = task.getTaskMeta().getUnique();
+            logger.warn(String.format("%s\02finishTask", identify));
+            ScheduledFuture<?> future = getTaskFuture(identify);
             if (future != null && !future.isDone()) {
                 future.cancel(true);
-                removeTaskFuture(task.getIdentify());
+                removeTaskFuture(identify);
                 return future.isCancelled();
             }
         }

@@ -1,14 +1,13 @@
 package com.opensource.leo.localtask.entrance;
 
 import com.google.common.collect.Sets;
-import com.opensource.leo.localtask.cron.LocalTask;
+import com.opensource.leo.localtask.annotation.Annotationer;
+import com.opensource.leo.localtask.annotation.Executor;
 import com.opensource.leo.localtask.cron.Task;
+import com.opensource.leo.localtask.cron.TaskExecutor;
 import org.apache.commons.collections.CollectionUtils;
-import org.apache.commons.collections.SetUtils;
 
-import java.io.IOException;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -18,18 +17,25 @@ import java.util.Set;
  * Date:15/8/13
  */
 public class TaskInitializer {
+    private final Generator<Map<String, TaskExecutor>> executorGenerator = new ExecutorGenerator();
+    private final Generator<Map<String, Task>> taskGenerator = new TaskGenarator();
 
-    Map<String, Task> init() throws IOException, IllegalAccessException, InstantiationException {
-        Map<String, Task> tasks = new HashMap<String, Task>();
-        // begin task from project
-        List<Class> clazzs = Annotationer.findClass(LocalTask.class, PersonalTask.class, TaskConfig.WORK_PACKAGE_DIR);
-        for (Class clazz : clazzs) {
-            initTask(clazz, tasks);
+    Map<String, Task> init() throws Exception {
+        Map<String, TaskExecutor> executorMap = executorGenerator.generate();
+        Map<String, Task> taskMap = taskGenerator.generate();
+        for (Map.Entry<String, Task> entry : taskMap.entrySet()) {
+            Task task = entry.getValue();
+            Executor executor = Annotationer.classAnnotation(task.getClass(), Executor.class);
+            String executorName = executor.name();
+            if (!executorMap.containsKey(executorName)) {
+                throw new TaskException("do not have your executor");
+            } else
+                task.setTaskExecutor(executorMap.get(executorName));
         }
-        return tasks;
+        return taskMap;
     }
 
-    Map<String, Task> init(Set<String> includes) throws IOException, IllegalAccessException, InstantiationException {
+    Map<String, Task> init(Set<String> includes) throws Exception {
         if (CollectionUtils.isEmpty(includes)) {
             return init();
         }
@@ -40,19 +46,5 @@ public class TaskInitializer {
             intersectionMap.put(task, tasks.get(task));
         }
         return intersectionMap;
-    }
-
-    private void initTask(Class clazz, Map<String, Task> tasks) throws IllegalAccessException, InstantiationException {
-        Object taskObj = clazz.newInstance();
-        Task task;
-        if (taskObj != null && taskObj instanceof Task)
-            task = (Task) taskObj;
-        else
-            return;
-        if (tasks.containsKey(task.getIdentify())) {
-            // 如果工程中有重复的task,在初始化时失败
-            throw new TaskException(String.format("[TaskInitializer] : you have same task:%s", task.getIdentify()));
-        }
-        tasks.put(task.getIdentify(), task);
     }
 }

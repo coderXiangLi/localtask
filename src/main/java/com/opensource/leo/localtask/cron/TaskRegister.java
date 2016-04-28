@@ -23,19 +23,19 @@ public class TaskRegister {
     private AtomicInteger available = new AtomicInteger(0);
     private ConcurrentMap<String, Set<Task>> tasks = new ConcurrentHashMap<String, Set<Task>>();
 
-    public boolean register(Task task) {
+    public boolean register(Task task) throws Exception {
         if (task != null) {
             task.init();
-            return register(task.getGroup(), task);
+            return register(task.getTaskMeta().getGroup(), task);
         }
         return false;
     }
 
-    public boolean register(Collection<Task> tasks) {
+    public boolean register(Collection<Task> tasks) throws Exception {
         for (Task task : tasks) {
             if (task != null) {
                 task.init();
-                if (!register(task.getGroup(), task)) return false;
+                if (!register(task.getTaskMeta().getGroup(), task)) return false;
             }
         }
         return true;
@@ -72,7 +72,7 @@ public class TaskRegister {
 
     public boolean cancel(Task task) {
         if (task != null) {
-            return cancel(task.getGroup(), task);
+            return cancel(task.getTaskMeta().getGroup(), task);
         }
         return false;
     }
@@ -93,7 +93,7 @@ public class TaskRegister {
 
     public boolean delete(Task task) {
         if (task != null) {
-            return delete(task.getGroup(), task);
+            return delete(task.getTaskMeta().getGroup(), task);
         }
         return false;
     }
@@ -115,7 +115,7 @@ public class TaskRegister {
         Set<Task> queue = getGroupTasks(group);
         if (queue != null && StringUtils.isNotBlank(key)) {
             for (Task each : queue) {
-                if (key.equals(each.getTaskName())) {
+                if (key.equals(each.getTaskMeta().getTaskName())) {
                     return each;
                 }
             }
@@ -150,6 +150,17 @@ public class TaskRegister {
 
     public Collection<Set<Task>> getTaskCollection() {
         return getAllTasks().values();
+    }
+
+    public Set<String> getAllTaskName() {
+        Set<String> names = new HashSet<String>();
+        Collection<Set<Task>> collection = getTaskCollection();
+        for (Set<Task> set : collection) {
+            for (Task task : set) {
+                names.add(task.getTaskMeta().getUnique());
+            }
+        }
+        return names;
     }
 
     public int groupSize() {
